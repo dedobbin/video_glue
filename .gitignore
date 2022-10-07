@@ -1,0 +1,7 @@
+incoming
+output
+processed
+test_videos
+stitch_list.txt
+.vscode
+*.pyc
