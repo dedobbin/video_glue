@@ -3,7 +3,8 @@ import time
 import ffmpeg
 from pathlib import Path
 import shutil
-from random import randrange
+import os
+
 
 def should_stop():
     return False
@@ -21,17 +22,20 @@ def create_dir(path):
 def stitch(should_stop, incoming_dir="incoming/", output_dir="output/", processed_dir="processed/"):
     create_dir(incoming_dir)
     create_dir(output_dir)
-    create_dir(incoming_dir)
+    create_dir(processed_dir)
     
-    output_file = f"output_{time.time()}.mp4"
+    output_file = f"output_{time.time()}.mp4" #name of final path
     stitch_file_path = "stitch_list.txt"
-
+    
     with open(stitch_file_path, 'w') as f:
         f.write(f"file '{output_dir+output_file}'\n")
     
     while(True):
         if should_stop():
-            break
+            print("Stopping")
+            return output_dir + output_file
+            
+        #print(f"Continue stitching, checking {incoming_dir}")
         for incoming_file in os.listdir(incoming_dir):
             if incoming_file not in os.listdir(processed_dir):
                 print(f"Found unprocessed file {incoming_file}")
@@ -39,20 +43,21 @@ def stitch(should_stop, incoming_dir="incoming/", output_dir="output/", processe
                     print(f"{incoming_file} is first, copy to output directly")
                     shutil.copy(incoming_dir+incoming_file, output_dir+output_file)
                 else:
-                    with open(stitch_file_path, 'a') as f:
-                        f.write(f"file '{incoming_dir+incoming_file}'")
+
+                    with open(stitch_file_path, "w") as f:
+                        f.write(f"file '{output_dir+output_file}'\n")
+                        f.write(f"file '{incoming_dir+incoming_file}'\n")
+
                     
                     with open(stitch_file_path, 'r') as f:
                         print(f"stitching:\n{f.read()}")
-                    ffmpeg.input(stitch_file_path, f='concat', safe=0).output(output_dir+"tmp.mp4", codec='copy').overwrite_output().run()
+                    ffmpeg.input(stitch_file_path, f='concat', safe=0).output(output_dir+"tmp.mp4", codec='copy', loglevel="quiet").overwrite_output().run()
                     Path(output_dir+"tmp.mp4").rename(output_dir+output_file) #move
-                    
-                    with open(stitch_file_path, "w+") as f:
-                        lines = f.readlines()
-                        f.write("\n".join(lines[:-1]))
 
-                print(f"moving {incoming_file} to {processed_dir}")
-                Path(incoming_dir+incoming_file).rename(processed_dir+incoming_file) #move
+                # print(f"moving {incoming_file} to {processed_dir}")
+                # Path(incoming_dir+incoming_file).rename(processed_dir+incoming_file) #move
+                os.remove(incoming_dir+incoming_file) 
+
             else:
                 print(f"{incoming_file} is already processed")
         
@@ -66,3 +71,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
